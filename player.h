@@ -1,3 +1,6 @@
+// player.h
+#ifndef PLAYER_H
+#define PLAYER_H
 #include <stdbool.h>
 
 // 定義陣營
@@ -27,3 +30,5 @@ typedef struct {
     bool is_poisoned;       // 今晚是否被女巫毒
     bool is_guarded;        // 今晚是否被守衛守
 } Player;
+
+#endif
