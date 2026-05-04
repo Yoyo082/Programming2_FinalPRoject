@@ -1,10 +1,8 @@
 #不要在preview看，格式會是錯的
-每個人在終端機輸入：
+每次開始前在終端機輸入：
 git clone https://github.com/Yoyo082/Programming2_FinalPRoject.git
 cd Programming2_FinalPRoject
 code .
-
-每次開始前在終端機輸入：
 git checkout main
 git pull origin main
 
