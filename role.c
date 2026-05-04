@@ -1,8 +1,8 @@
-// roles.c
 #include "role.h" // 必須引入自己的標頭檔
 #include <stddef.h> // 為了使用 NULL
 
 // --- 基礎角色邏輯 ---
+
 // 狼人刀人邏輯
 void werewolf_kill(Player* target) {
     if (target != NULL && target->is_alive) {
@@ -13,7 +13,7 @@ void werewolf_kill(Player* target) {
 // 女巫救人：告知死者號碼並決定是否使用解藥
 // 回傳 true 代表成功使用，false 代表不滿足條件（如自救、藥已用過、死者為 NULL）
 bool witch_save(Player* players, int witch_id, int killed_id, bool* has_antidote) {
-    // 防呆：必須有解藥、死者必須存在
+    // 必須有解藥、死者必須存在
     if (!(*has_antidote) || killed_id == -1) return false;
 
     // 規則判定：女巫被刀不能自救
@@ -34,7 +34,7 @@ bool witch_poison(Player* target, bool* has_poison) {
     return true;
 }
 
-// 守衛：守護 (傳入目標與昨晚守護的 ID 以防呆)
+// 守衛：守護 (傳入目標與昨晚守護的ID)
 bool guard_protect(Player* target, int* last_guarded_id) {
     if (target->id == *last_guarded_id) return false; // 不能連守
     target->is_guarded = true;
@@ -43,17 +43,18 @@ bool guard_protect(Player* target, int* last_guarded_id) {
 }
 
 // 預言家查驗
-// 回傳值：0 代表好人，1 代表狼人，-1 代表查驗失敗（如目標已死）
+// 回傳 0 代表好人，1 代表狼人，-1 代表查驗失敗（如目標已死）
 int seer_investigate(Player* players, int target_id, int alive_wolf_count) {
     if (!players[target_id].is_alive) return -1;
 
-    // 隱狼規則：只要還有其他狼隊友活著，查驗結果永遠為好人 (0)
+    // 隱狼：只要還有其他狼隊友活著，查驗結果永遠為好人 (0)
     if (players[target_id].role == ROLE_HIDDEN_WOLF && alive_wolf_count > 1) {
         return FACTION_GOOD;
     }
 
     return players[target_id].faction;
 }
+
 
 // --- 進階版型邏輯 ---
 
@@ -79,7 +80,7 @@ bool knight_duel(Player* players, int knight_id, int target_id) {
 
 // 白狼王自爆 (回傳 true 代表自爆成功，白天強制結束)
 bool white_wolf_king_explode(Player* players, int wwk_id, int target_id) {
-    // 防呆：被毒死不能發動技能 (需仰賴第一部分在白天結算時保留 is_poisoned 狀態)
+    // 被毒死不能發動技能 (需仰賴第一部分在白天結算時保留 is_poisoned 狀態)
     if (players[wwk_id].is_poisoned || !players[wwk_id].is_alive) return false;
     
     // 帶走目標
@@ -106,7 +107,7 @@ bool hidden_wolf_awakens(int total_alive_wolves, Player* hw_player) {
     return false;
 }
 
-// 🐻 熊咆哮演算法 (環狀陣列走訪)
+// 熊咆哮演算法
 // 回傳 true 代表咆哮 (有狼)，false 代表沒咆哮
 bool bear_roars(Player* players, int bear_id, int alive_wolf_count) {
     if (!players[bear_id].is_alive) return false; // 熊死了不叫
@@ -142,8 +143,8 @@ void idiot_reveal(Player* target) {
     }
 }
 
-// --- 死亡結算引擎 --- (處理奶穿與毒藥)
-// 第一部分的同學在「天亮宣佈死訊」前，必須呼叫這個函式
+// --- 死亡結算引擎 --- 
+// 主遊戲流程在「天亮宣佈死訊」前，必須呼叫這個函式
 void finalize_night_results(Player* players, int player_count) {
     for (int i = 0; i < player_count; i++) {
         if (!players[i].is_alive) continue;
@@ -174,5 +175,3 @@ void finalize_night_results(Player* players, int player_count) {
         }
     }
 }
-
-// ... 把其他所有角色邏輯都貼在這個檔案裡 ...
