@@ -9,6 +9,8 @@ bool witch_save(Player* players, int witch_id, int killed_id, bool* has_antidote
 bool witch_poison(Player* target, bool* has_poison);
 int seer_investigate(Player* players, int target_id, int alive_wolf_count);
 bool guard_protect(Player* target, int* last_guarded_id);
+bool hunter_can_shoot(Player* hunter);
+void hunter_shoot(Player* target);
 
 // 死亡結算
 void finalize_night_results(Player* players, int player_count);

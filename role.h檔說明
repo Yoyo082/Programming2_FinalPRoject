@@ -34,6 +34,17 @@ int seer_investigate(Player* players, int target_id, int alive_wolf_count)
 正常情況：回傳目標玩家的真實陣營。
 回傳值： FACTION_GOOD (好人), FACTION_WOLF (狼人), 或 -1 (查驗失敗)。
 
+bool hunter_can_shoot(Player* hunter)
+功能： 判定獵人死亡時是否滿足開槍條件。
+動作： 
+防呆檢查：確認目標角色為獵人。
+檢查獵人身上的 is_poisoned 標記，若為 true（被毒死）則阻斷開槍。
+回傳值： 滿足開槍條件回傳 true，否則回傳 false。
+
+void hunter_shoot(Player* target)
+功能： 執行獵人開槍帶走目標的動作。
+動作： 確認目標存在且存活後，強制將目標玩家設為死亡狀態（is_alive, can_vote, can_speak 設為 false）。
+
 --進階版型邏輯--
 
 bool knight_duel(Player* players, int knight_id, int target_id)

@@ -55,6 +55,27 @@ int seer_investigate(Player* players, int target_id, int alive_wolf_count) {
     return players[target_id].faction;
 }
 
+// 獵人判定：是否可以開槍
+// 回傳 true 代表可以開槍，false 代表不能開槍 (如：被毒死)
+bool hunter_can_shoot(Player* hunter) {
+    // 防呆：確認該角色真的是獵人
+    if (hunter->role != ROLE_HUNTER) return false;
+    
+    // 規則判定：如果身上有被女巫毒殺的標記，則無法開槍
+    if (hunter->is_poisoned) return false;
+    
+    // 其餘死亡情況（被刀、被票死）皆可開槍
+    return true;
+}
+
+// 獵人開槍帶人
+void hunter_shoot(Player* target) {
+    if (target != NULL && target->is_alive) {
+        target->is_alive = false;
+        target->can_vote = false;
+        target->can_speak = false; // 直接剝奪發言與投票權
+    }
+}
 
 // --- 進階版型邏輯 ---
 
