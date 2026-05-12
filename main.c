@@ -1276,7 +1276,7 @@ int main()
         printf("請選擇：");
         scanf("%d", &play_again);
         system(CLEAR_CMD);
-    } while (play_again == 1); // [關鍵 3] 這裡結束最外層的 do-while 迴圈
+    } while (play_again == 1);
 
     printf("感謝遊玩，下次見！\n");
     return 0;
