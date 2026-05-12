@@ -1,3 +1,4 @@
+//需要修改
 #ifndef ROLE_H
 #define ROLE_H
 
