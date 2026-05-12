@@ -14,6 +14,7 @@ void hunter_shoot(Player* target);
 
 // 死亡結算
 void finalize_night_results(Player* players, int player_count);
+int check_win_condition(Player *players);
 
 // 進階版型
 bool knight_duel(Player* players, int knight_id, int target_id);

@@ -1,0 +1,90 @@
+--基礎角色邏輯--
+
+void werewolf_kill(Player* target)
+功能： 執行狼人在夜晚的殺人動作。
+動作： 將目標玩家的 is_knifed 標記設為 true。會先檢查目標是否存在且存活。
+
+bool witch_save(Player* players, int witch_id, int killed_id, bool* has_antidote)
+功能： 執行女巫在夜晚的救人（使用解藥）動作。
+動作：
+防呆檢查：確認女巫還有解藥，且有接收到被殺玩家的 ID。
+規則檢查：確認女巫不是自救（被殺玩家 ID 不能等於女巫 ID）。
+若檢查通過，將被殺玩家的 is_saved 標記設為 true，並消耗解藥（將 has_antidote 指向的值設為 false）。
+回傳值： 成功使用解藥回傳 true，否則回傳 false。
+
+bool witch_poison(Player* target, bool* has_poison)
+功能： 執行女巫在夜晚的毒人（使用毒藥）動作。
+動作：
+防呆檢查：確認女巫還有毒藥，且目標玩家存活。
+若檢查通過，將目標玩家的 is_poisoned 標記設為 true，並消耗毒藥（將 has_poison 指向的值設為 false）。
+回傳值： 成功使用毒藥回傳 true，否則回傳 false。
+
+bool guard_protect(Player* target, int* last_guarded_id)
+功能： 執行守衛在夜晚的守護動作。
+動作：
+防呆檢查：確認目標玩家不是昨晚守護過的玩家（不能連續守護同一人）。
+若檢查通過，將目標玩家的 is_guarded 標記設為 true，並更新昨晚守護的 ID 紀錄。
+回傳值： 成功守護回傳 true，否則回傳 false。
+
+int seer_investigate(Player* players, int target_id, int alive_wolf_count)
+功能： 執行預言家在夜晚的查驗動作。
+動作：
+防呆檢查：若目標已死亡，回傳 -1。
+規則處理（隱狼偽裝）：若目標是隱狼且場上還有其他狼人存活，則回傳好人陣營（偽裝成功）。
+正常情況：回傳目標玩家的真實陣營。
+回傳值： FACTION_GOOD (好人), FACTION_WOLF (狼人), 或 -1 (查驗失敗)。
+
+bool hunter_can_shoot(Player* hunter)
+功能： 判定獵人死亡時是否滿足開槍條件。
+動作： 
+防呆檢查：確認目標角色為獵人。
+檢查獵人身上的 is_poisoned 標記，若為 true（被毒死）則阻斷開槍。
+回傳值： 滿足開槍條件回傳 true，否則回傳 false。
+
+void hunter_shoot(Player* target)
+功能： 執行獵人開槍帶走目標的動作。
+動作： 確認目標存在且存活後，強制將目標玩家設為死亡狀態（is_alive, can_vote, can_speak 設為 false）。
+
+--進階版型邏輯--
+
+bool knight_duel(Player* players, int knight_id, int target_id)
+功能： 執行騎士在白天的決鬥動作。
+動作：
+防呆檢查：確認騎士與目標玩家皆存活。
+若決鬥目標為狼人陣營：目標死亡（is_alive, can_vote, can_speak 設為 false）。
+若決鬥目標為好人陣營：騎士自己死亡（以死謝罪）。
+回傳值： 若決鬥到狼人（應強制結束白天）回傳 true，否則回傳 false。
+
+bool white_wolf_king_explode(Player* players, int wwk_id, int target_id)
+功能： 執行白狼王在白天的自爆帶人動作。
+動作：
+防呆檢查：若白狼王已被毒死或已死亡，則無法發動。
+若檢查通過，強制將目標玩家與白狼王自己設為死亡狀態。
+回傳值： 成功自爆（應強制結束白天）回傳 true，否則回傳 false。
+
+bool hidden_wolf_awakens(int total_alive_wolves, Player* hw_player)
+功能： 判定隱狼是否滿足覺醒條件（可以開始刀人）。
+動作： 檢查目前存活的狼人總數是否為 1，且該名玩家角色是否為隱狼。
+回傳值： 滿足覺醒條件回傳 true，否則回傳 false。
+
+bool bear_roars(Player* players, int bear_id, int alive_wolf_count)
+功能： 判定熊在天亮時是否會咆哮。
+動作：
+若熊已死，則不會咆哮。
+使用環狀陣列邏輯（% 12），跳過已死亡玩家，尋找熊左邊和右邊最近的存活玩家。
+檢查這兩名相鄰存活玩家是否為狼人。注意：若相鄰玩家是隱狼且尚未覺醒，則不會引發咆哮。
+回傳值： 若相鄰有狼人（引發咆哮）回傳 true，否則回傳 false。
+
+void idiot_reveal(Player* target)
+功能： 處理白痴在白天被投票出局時的翻牌動作。
+動作： 確認目標角色為白痴後，將其設為死亡狀態且拔除投票權，但保留發言權。
+
+--死亡結算引擎--
+
+void finalize_night_results(Player* players, int player_count)
+功能： 在天亮前，統一結算昨晚所有技能造成的死亡結果。
+動作： 遍歷所有存活玩家，處理以下邏輯：
+奶穿判定： 若玩家同時被刀、被守、被救，則判定死亡。
+一般狼刀： 若被刀，且（未被守 或 未被救），則判定死亡。
+毒藥優先： 毒藥傷害無視守衛，判定死亡。
+將判定死亡的玩家狀態更新（is_alive, can_vote, can_speak 設為 false）

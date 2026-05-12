@@ -196,3 +196,39 @@ void finalize_night_results(Player* players, int player_count) {
         }
     }
 }
+
+// 檢查遊戲勝負條件 (屠邊局規則)
+// 回傳值: 0 代表遊戲繼續，1 代表好人贏，2 代表狼人贏
+int check_win_condition(Player *players)
+{
+    int alive_wolves = 0;
+    int alive_villagers = 0;
+    int alive_gods = 0;
+
+    for (int i = 1; i <= 12; i++)
+    {
+        if (players[i].is_alive)
+        {
+            if (players[i].faction == FACTION_WOLF)
+            {
+                alive_wolves++;
+            }
+            else if (players[i].role == ROLE_VILLAGER)
+            {
+                alive_villagers++;
+            }
+            else
+            {
+                // 只要不是狼也不是平民，就是神職
+                alive_gods++;
+            }
+        }
+    }
+
+    if (alive_wolves == 0)
+        return 1; // 狼死光，好人贏
+    if (alive_villagers == 0 || alive_gods == 0)
+        return 2; // 神或民任一方死光，狼人贏
+
+    return 0; // 都還沒死光，遊戲繼續
+}

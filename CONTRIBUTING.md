@@ -1,19 +1,39 @@
-每個人在終端機輸入：
+#不要在preview看，格式會是錯的
+## Git 工作流程指南
+
+一次性設定（第一次才需要做）
+
+設定名字和信箱：
+git config --global user.name "你的名字"
+git config --global user.email "你的信箱"
+
+Clone 專案到本機：
 git clone https://github.com/Yoyo082/Programming2_FinalPRoject.git
 cd Programming2_FinalPRoject
-code .
 
-每次開始前在終端機輸入：
-git checkout main
+
+---
+每次工作的流程
+
 git pull origin main
 
-建立自己的功能分支：
-git checkout -b feature/你的功能名稱
+寫完程式後，上傳到 GitHub：
+git status                  # 確認哪些檔案有變動
+git add .                   # 加入所有變動
+git commit -m "做了什麼"    # 儲存版本
+git push origin main        # 推上 GitHub
 
-寫完一個段落後，儲存進度：
-git add .
-git commit -m "簡短描述做了什麼"
-git push origin feature/你的功能名稱
+常見問題
+
+Push 被拒絕
+代表有人比你先 push，執行以下指令再重新 push：
+
+git pull origin main
+git push origin main
+
+**跳出 Vim 黑色畫面**
+直接輸入 :wq 再按 Enter 關掉即可。
+
 
 e.g.
     git commit -m "[State] 實作夜晚行動執行順序"
