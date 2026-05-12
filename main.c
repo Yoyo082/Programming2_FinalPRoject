@@ -13,6 +13,33 @@
 #define CLEAR_CMD "clear"
 #endif
 
+// 檢查遊戲勝負條件 (屠邊局規則 - 狼刀在先)
+int check_win_condition(Player *players)
+{
+    int alive_wolves = 0, alive_villagers = 0, alive_gods = 0;
+
+    for (int i = 1; i <= 12; i++)
+    {
+        if (players[i].is_alive)
+        {
+            if (players[i].faction == FACTION_WOLF)
+                alive_wolves++;
+            else if (players[i].role == ROLE_VILLAGER)
+                alive_villagers++;
+            else
+                alive_gods++;
+        }
+    }
+
+    // 依照「狼刀在先」，必須先檢查狼人是否達成屠邊獲勝
+    if (alive_villagers == 0 || alive_gods == 0)
+        return 2; // 狼人贏
+    if (alive_wolves == 0)
+        return 1; // 好人贏
+
+    return 0;
+}
+
 int main()
 {
 
@@ -165,10 +192,6 @@ int main()
 
                 // 守衛行動
                 printf("\n守衛請睜眼\n");
-                printf("請選擇要守護的玩家號碼 (空守請輸入 0)：");
-
-                int guard_target;
-                scanf("%d", &guard_target);
 
                 int guard_id = -1;
                 for (int i = 1; i <= 12; i++)
@@ -182,6 +205,8 @@ int main()
                 if (guard_id != -1 && players[guard_id].is_alive)
                 {
                     printf("請選擇要守護的玩家號碼 (空守請輸入 0)：");
+                    int guard_target;
+                    scanf("%d", &guard_target);
                     int guard_target;
                     scanf("%d", &guard_target);
 
@@ -550,7 +575,7 @@ int main()
                     }
                     else if (day_choice == 3)
                     {
-                        // 【任務 4：白狼王防呆與發動】
+                        // 白狼王防呆與發動
                         int wwk_id, target_id;
                         printf("請輸入【發動者(白狼王)】編號：");
                         scanf("%d", &wwk_id);
@@ -673,13 +698,577 @@ int main()
         }
         else if (version_choice == 2)
         {
-            printf("熊隱狼局即將上線！\n");
+            // 【熊隱狼局牌庫】
+            RoleType role_deck[13] = {
+                ROLE_VILLAGER,
+                ROLE_HIDDEN_WOLF, ROLE_WEREWOLF, ROLE_WEREWOLF, ROLE_WEREWOLF,
+                ROLE_BEAR, ROLE_WITCH, ROLE_HUNTER, ROLE_IDIOT,
+                ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER};
+
+            srand(time(NULL));
+
+            for (int i = 12; i > 1; i--)
+            {
+                int j = (rand() % i) + 1;
+                RoleType temp = role_deck[i];
+                role_deck[i] = role_deck[j];
+                role_deck[j] = temp;
+            }
+
+            for (int i = 1; i <= 12; i++)
+            {
+                players[i].id = i;
+                players[i].is_alive = true;
+                players[i].can_vote = true;
+                players[i].can_speak = true;
+                players[i].is_knifed = false;
+                players[i].is_saved = false;
+                players[i].is_poisoned = false;
+                players[i].is_guarded = false;
+
+                players[i].role = role_deck[i];
+
+                if (players[i].role == ROLE_WEREWOLF || players[i].role == ROLE_HIDDEN_WOLF)
+                    players[i].faction = FACTION_WOLF;
+                else
+                    players[i].faction = FACTION_GOOD;
+            }
+
+            // 玩家輪流看牌
+            printf("\n發牌完畢！接下來請依照順序查看身分底牌。\n");
+            int dummy = 0;
+
+            for (int i = 1; i <= 12; i++)
+            {
+                system(CLEAR_CMD);
+                printf("\n==========================================\n");
+                printf("       現在輪到【 %d 號玩家 】查看身分       \n", i);
+                printf("==========================================\n");
+                printf("如果你是 %d 號玩家本人，請輸入 1 並按 Enter 翻牌：", i);
+                scanf("%d", &dummy);
+
+                printf("\n------------------------------------------\n");
+                printf("你的身分是：");
+                switch (players[i].role)
+                {
+                case ROLE_HIDDEN_WOLF:
+                    printf("隱狼\n");
+                    break;
+                case ROLE_WEREWOLF:
+                    printf("狼人\n");
+                    break;
+                case ROLE_BEAR:
+                    printf("熊\n");
+                    break;
+                case ROLE_WITCH:
+                    printf("女巫\n");
+                    break;
+                case ROLE_HUNTER:
+                    printf("獵人\n");
+                    break;
+                case ROLE_IDIOT:
+                    printf("白痴\n");
+                    break;
+                case ROLE_GUARD:
+                    printf("守衛\n");
+                    break;
+                case ROLE_SEER:
+                    printf("預言家\n");
+                    break;
+                case ROLE_VILLAGER:
+                    printf("平民\n");
+                    break;
+                default:
+                    printf("其他神祕身分\n");
+                    break;
+                }
+                printf("------------------------------------------\n");
+
+                printf("\n請確實記住你的身分！\n");
+                printf("看完後，請輸入 0 並按 Enter 蓋牌，然後交給下一位玩家：");
+                scanf("%d", &dummy);
+            }
+
+            system(CLEAR_CMD);
+            printf("\n==========================================\n");
+            printf("所有人皆已確認身分！進入黑夜！\n");
+            printf("==========================================\n");
+
+            bool game_over = false;
+            int days = 1;
+
+            while (!game_over)
+            {
+                for (int i = 1; i <= 12; i++)
+                {
+                    players[i].is_knifed = false;
+                    players[i].is_saved = false;
+                    players[i].is_poisoned = false;
+                    players[i].is_guarded = false;
+                }
+
+                // 每天晚上重新計算存活的狼人數量 (給隱狼和熊用)
+                int alive_wolves_count = 0;
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (players[i].faction == FACTION_WOLF && players[i].is_alive)
+                        alive_wolves_count++;
+                }
+
+                system(CLEAR_CMD);
+                printf("\n================ 第 %d 天 ================\n", days);
+                printf("天黑請閉眼\n");
+
+                // --- 1-1. 隱狼行動 ---
+                printf("\n隱狼請睜眼\n");
+
+                int hw_id = -1;
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (players[i].role == ROLE_HIDDEN_WOLF)
+                    {
+                        hw_id = i;
+                        break;
+                    }
+                }
+
+                if (hw_id != -1 && players[hw_id].is_alive)
+                {
+                    if (days == 1)
+                    {
+                        printf("你的狼隊友是：（ ");
+                        for (int i = 1; i <= 12; i++)
+                        {
+                            if (players[i].faction == FACTION_WOLF && i != hw_id)
+                                printf("%d號 ", i);
+                        }
+                        printf("）\n");
+                    }
+
+                    bool awakened = hidden_wolf_awakens(alive_wolves_count, &players[hw_id]);
+                    if (awakened)
+                        printf("今晚的回歸狼隊情況：（ 已回歸狼隊 ）\n");
+                    else
+                        printf("今晚的回歸狼隊情況：（ 無 ）\n");
+                }
+                else
+                {
+                    printf("(隱狼已死亡，請等待幾秒後輸入 0 繼續以混淆視聽)\n");
+                }
+                printf("隱狼請閉眼。確認後請輸入 0 並按 Enter 閉眼：");
+                scanf("%d", &dummy);
+                system(CLEAR_CMD);
+
+                // --- 1-2. 狼人行動 ---
+                printf("\n狼人請睜眼\n");
+                printf("請選擇要擊殺的玩家號碼 (不殺人請輸入0)：");
+                int wolf_target;
+                scanf("%d", &wolf_target);
+
+                // 目標必須活著才能刀
+                if (wolf_target >= 1 && wolf_target <= 12 && players[wolf_target].is_alive)
+                {
+                    werewolf_kill(&players[wolf_target]);
+                }
+
+                printf("狼人請閉眼。確認後請輸入 0 並按 Enter 閉眼：");
+                scanf("%d", &dummy);
+                system(CLEAR_CMD);
+
+                // --- 2. 女巫行動 ---
+                printf("\n女巫請睜眼\n");
+                int witch_id = -1;
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (players[i].role == ROLE_WITCH)
+                    {
+                        witch_id = i;
+                        break;
+                    }
+                }
+
+                if (witch_id != -1 && players[witch_id].is_alive)
+                {
+                    if (!witch_has_antidote && !witch_has_poison)
+                    {
+                        printf("你的解藥與毒藥皆已用盡。\n");
+                    }
+                    else
+                    {
+                        if (witch_has_antidote)
+                        {
+                            if (wolf_target == 0 || !players[wolf_target].is_alive)
+                                printf("今晚平安夜，沒有人被殺死。\n");
+                            else
+                                printf("今晚被殺死的是 【 %d 號玩家 】。\n", wolf_target);
+                        }
+                        else
+                        {
+                            printf("你的解藥已用盡，無法得知今晚誰被殺死。\n");
+                        }
+
+                        printf("\n請選擇你要進行的操作：\n");
+                        if (witch_has_antidote)
+                            printf("[1] 使用解藥\n");
+                        if (witch_has_poison)
+                            printf("[2] 使用毒藥\n");
+                        printf("[0] 什麼都不做\n");
+                        printf("你的選擇是：");
+
+                        int choice;
+                        scanf("%d", &choice);
+
+                        if (choice == 1 && witch_has_antidote)
+                        {
+                            if (wolf_target == 0)
+                            {
+                                printf("今晚無人死亡，無法使用解藥。\n");
+                            }
+                            else
+                            {
+                                bool success = witch_save(players, witch_id, wolf_target, &witch_has_antidote);
+                                if (success)
+                                    printf("成功使用解藥，救活了 %d 號玩家。\n", wolf_target);
+                                else
+                                    printf("使用解藥失敗 (可能為自救或條件不符)。\n");
+                            }
+                        }
+                        else if (choice == 2 && witch_has_poison)
+                        {
+                            printf("你要毒誰呢？(請輸入玩家編號)：");
+                            int poison_target;
+                            scanf("%d", &poison_target);
+
+                            // [對齊防呆]
+                            if (poison_target >= 1 && poison_target <= 12 && players[poison_target].is_alive)
+                            {
+                                bool success = witch_poison(&players[poison_target], &witch_has_poison);
+                                if (success)
+                                    printf("成功對 %d 號玩家使用毒藥。\n", poison_target);
+                            }
+                            else
+                            {
+                                printf("無效的玩家編號或玩家已死亡。\n");
+                            }
+                        }
+                        else
+                        {
+                            printf("[系統提示] 選擇保留藥水，什麼都不做。\n");
+                        }
+                    }
+                }
+                else
+                {
+                    printf("(女巫已死亡，法官請等待幾秒後輸入 0 繼續以混淆視聽)\n");
+                }
+                printf("\n女巫請閉眼。確認後請輸入 0 並按 Enter 閉眼：");
+                scanf("%d", &dummy);
+                system(CLEAR_CMD);
+
+                // --- 3. 獵人行動 ---
+
+                printf("\n獵人請睜眼\n");
+                int hunter_id = -1;
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (players[i].role == ROLE_HUNTER)
+                    {
+                        hunter_id = i;
+                        break;
+                    }
+                }
+
+                if (hunter_id != -1 && players[hunter_id].is_alive)
+                {
+                    bool can_shoot = hunter_can_shoot(&players[hunter_id]);
+                    if (can_shoot)
+                        printf("今晚的開槍狀態是 ( 可以開槍 )\n");
+                    else
+                        printf("今晚的開槍狀態是 ( 不能開槍 )\n");
+                }
+                else
+                {
+                    printf("(獵人已死亡，法官請等待幾秒後輸入 0 繼續以混淆視聽)\n");
+                }
+                printf("\n獵人請閉眼。確認後請輸入 0 並按 Enter 閉眼：");
+                scanf("%d", &dummy);
+                system(CLEAR_CMD);
+
+                // ==========================================
+                //                 黑夜結束，進入白天
+                // ==========================================
+                printf("\n================ 天亮請睜眼 ================\n");
+
+                finalize_night_results(players, 13);
+
+                int death_count = 0;
+                int dead_ids[12];
+
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (!players[i].is_alive && (players[i].is_knifed || players[i].is_poisoned || (players[i].is_saved && players[i].is_guarded)))
+                    {
+                        dead_ids[death_count] = i;
+                        death_count++;
+                    }
+                }
+
+                // --- 4. 熊行動 (天亮宣佈死訊前/後播報皆可，這裡依邏輯順序放在死訊前) ---
+                int bear_id = -1;
+                for (int i = 1; i <= 12; i++)
+                {
+                    if (players[i].role == ROLE_BEAR)
+                    {
+                        bear_id = i;
+                        break;
+                    }
+                }
+
+                if (bear_id != -1 && players[bear_id].is_alive)
+                {
+                    bool roared = bear_roars(players, bear_id, alive_wolves_count);
+                    if (players[bear_id].is_alive)
+                    {
+                        if (roared)
+                        {
+                            printf("=> 🐻 宣布：【 熊咆哮了！ 】\n\n");
+                        }
+                        else
+                        {
+                            printf("=> 🐻 宣布：【 熊沒有咆哮 】\n\n");
+                        }
+                    }
+                }
+
+                if (death_count == 0)
+                {
+                    printf("昨晚是平安夜，無人死亡。\n");
+                }
+                else
+                {
+                    printf("昨晚死亡的是：");
+                    for (int i = 0; i < death_count; i++)
+                        printf("【 %d 號 】 ", dead_ids[i]);
+                    printf("\n");
+
+                    // 檢查死者中有沒有獵人要開槍
+                    for (int i = 0; i < death_count; i++)
+                    {
+                        int d_id = dead_ids[i];
+                        if (players[d_id].role == ROLE_HUNTER)
+                        {
+                            if (hunter_can_shoot(&players[d_id]))
+                            {
+                                printf("\n獵人【 %d 號 】昨晚出局，發動技能開槍！\n", d_id);
+                                printf("請輸入要帶走的玩家號碼 (放棄開槍請輸入 0)：");
+                                int target;
+                                scanf("%d", &target);
+
+                                if (target >= 1 && target <= 12 && players[target].is_alive)
+                                {
+                                    hunter_shoot(&players[target]);
+                                    printf("=> 砰！獵人開槍帶走了【 %d 號 】！\n", target);
+                                }
+                                else if (target != 0)
+                                {
+                                    printf("[系統提示] 無效的目標，獵人放棄開槍。\n");
+                                }
+                            }
+                            else
+                            {
+                                printf("\n=> 🩸 獵人【 %d 號 】被毒殺封印，無法開槍。\n", d_id);
+                            }
+                        }
+                    }
+                }
+
+                int win_status = check_win_condition(players);
+                if (win_status != 0)
+                {
+                    if (win_status == 1)
+                        printf("\n好人陣營獲勝\n");
+                    else
+                        printf("\n狼人陣營獲勝\n");
+                    game_over = true;
+                    break;
+                }
+
+                printf("\n請輸入 0 繼續進入發言環節：");
+                scanf("%d", &dummy);
+                system(CLEAR_CMD);
+
+                // --- 發言環節開始 ---
+                bool skip_voting = false;
+
+                if (win_status == 0)
+                {
+                    if (death_count > 0)
+                    {
+                        if (days == 1)
+                            printf("\n請昨晚死亡的玩家發表【遺言】。\n");
+                        else
+                            printf("\n昨晚死亡的玩家【沒有遺言】，請直接離場。\n");
+
+                        printf("(請輸入 0 繼續)：");
+                        scanf("%d", &dummy);
+                    }
+
+                    printf("\n================ 發言環節 ================\n");
+                    int start_speaker_id = 0;
+                    while (true)
+                    {
+                        start_speaker_id = (rand() % 12) + 1;
+                        if (players[start_speaker_id].is_alive)
+                            break;
+                    }
+                    printf("=> 由抽籤決定，從【 %d 號玩家 】開始，請自行決定順序（順/逆時針）發言。\n", start_speaker_id);
+                    printf("------------------------------------------\n");
+                }
+
+                bool daytime_active = true;
+
+                while (daytime_active)
+                {
+                    printf("\n--- 目前為發言階段 ---\n");
+                    printf("請選擇接下來發生的事件：\n");
+                    printf("[1] 繼續下一位玩家發言\n");
+                    printf("[2] 🐺 狼人自爆\n");
+                    printf("[0] 所有玩家發言完畢，進入投票環節\n");
+                    printf("請輸入選項 (0-2): ");
+
+                    int day_choice;
+                    scanf("%d", &day_choice);
+
+                    if (day_choice == 1)
+                    {
+                        printf("=> 繼續發言...\n");
+                    }
+                    else if (day_choice == 2)
+                    {
+                        int wolf_id;
+                        printf("請輸入【自爆的狼人】編號：");
+                        scanf("%d", &wolf_id);
+
+                        if (wolf_id >= 1 && wolf_id <= 12 && players[wolf_id].faction == FACTION_WOLF && players[wolf_id].is_alive)
+                        {
+                            players[wolf_id].is_alive = false;
+                            players[wolf_id].can_vote = false;
+                            players[wolf_id].can_speak = false;
+
+                            printf("\n=> 💥 【 %d 號 】狼人自爆！\n", wolf_id);
+                            printf("=> 白天強制結束，不進行投票。\n");
+
+                            daytime_active = false;
+                            skip_voting = true;
+
+                            win_status = check_win_condition(players);
+                            if (win_status != 0)
+                                break;
+                        }
+                        else
+                        {
+                            printf("[系統提示] 發動失敗：該玩家不是狼人陣營或已死亡。\n");
+                        }
+                    }
+                    else if (day_choice == 0)
+                    {
+                        printf("=> 所有玩家發言完畢，準備進入投票。\n");
+                        daytime_active = false;
+                    }
+                    else
+                    {
+                        printf("[系統提示] 無效的選項，請重新輸入。\n");
+                    }
+                }
+
+                // --- 投票環節 ---
+                if (win_status == 0 && !skip_voting)
+                {
+                    printf("\n================ 投票環節 ================\n");
+                    printf("請進行公投，輸入出局者編號 (不投票請輸 0)：");
+                    int vote_id;
+                    scanf("%d", &vote_id);
+
+                    if (vote_id >= 1 && vote_id <= 12 && players[vote_id].is_alive)
+                    {
+                        // --- 5. 白痴翻牌邏輯 ---
+                        if (players[vote_id].role == ROLE_IDIOT)
+                        {
+                            idiot_reveal(&players[vote_id]);
+                            printf("\n=> 🃏 【 %d 號 】是白痴！翻牌發動技能，狀態視為死亡，但可繼續留在場上發言。\n", vote_id);
+                        }
+                        else
+                        {
+                            players[vote_id].is_alive = false;
+                            players[vote_id].can_vote = false;
+                            printf("\n=> ⚖️ 【 %d 號玩家 】被公投出局。\n", vote_id);
+
+                            // 獵人白天出局開槍邏輯
+                            if (players[vote_id].role == ROLE_HUNTER && hunter_can_shoot(&players[vote_id]))
+                            {
+                                printf("\n=> 🔫 獵人【 %d 號 】被公投出局，發動技能開槍！\n", vote_id);
+                                printf("請輸入要帶走的玩家號碼 (放棄開槍請輸入 0)：");
+                                int target;
+                                scanf("%d", &target);
+                                if (target >= 1 && target <= 12 && players[target].is_alive)
+                                {
+                                    hunter_shoot(&players[target]);
+                                    printf("=> 砰！獵人開槍帶走了【 %d 號 】！\n", target);
+                                }
+                                else if (target != 0)
+                                {
+                                    printf("[系統提示] 無效的目標，獵人放棄開槍。\n");
+                                }
+                            }
+                        }
+
+                        printf("\n請被公投的【 %d 號玩家 】發表遺言。\n", vote_id);
+                        printf("(請輸入 0 繼續)：");
+                        scanf("%d", &dummy);
+
+                        win_status = check_win_condition(players);
+                        if (win_status != 0)
+                        {
+                            if (win_status == 1)
+                                printf("\n好人陣營獲勝\n");
+                            else
+                                printf("\n狼人陣營獲勝\n");
+                            game_over = true;
+                            break;
+                        }
+                    }
+                    else if (vote_id != 0)
+                    {
+                        printf("[系統提示] 無效的投票目標或該玩家已死亡。\n");
+                    }
+                }
+
+                // --- 判斷這一局是否結束 ---
+                if (win_status != 0)
+                {
+                    if (win_status == 1)
+                        printf("\n🏆 好人陣營獲勝 🏆\n");
+                    else
+                        printf("\n🏆 狼人陣營獲勝 🏆\n");
+                    game_over = true;
+                }
+                else
+                {
+                    printf("\n請輸入 0 準備進入黑夜...");
+                    scanf("%d", &dummy);
+                    days++;
+                }
+            }
         }
         else
         {
+            // 防呆：如果玩家輸入 1 和 2 以外的數字
             printf("無效的版本選擇。\n");
         }
 
+        // ==========================================
+        //  以下這段必須在所有的 if / else if 外面！
+        // ==========================================
         printf("\n==========================================\n");
         printf("遊戲結束！要再玩一局嗎？\n");
         printf("[1] 再來一局 (重新選版本/發牌)\n");
@@ -687,8 +1276,7 @@ int main()
         printf("請選擇：");
         scanf("%d", &play_again);
         system(CLEAR_CMD);
-
-    } while (play_again == 1);
+    } while (play_again == 1); // [關鍵 3] 這裡結束最外層的 do-while 迴圈
 
     printf("感謝遊玩，下次見！\n");
     return 0;
