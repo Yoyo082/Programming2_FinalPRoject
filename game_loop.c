@@ -468,9 +468,10 @@ void run_day_phase(Player* players, GameState* state) {
                 } else if (day_choice == 4) { // 普通狼人
                     int wolf_id;
                     printf("請輸入【自爆的狼人】編號："); scanf("%d", &wolf_id);
-                    if (wolf_id >= 1 && wolf_id <= 12 && players[wolf_id].faction == FACTION_WOLF && players[wolf_id].is_alive) {
+                    if (wolf_id >= 1 && wolf_id <= 12 && players[wolf_id].faction == FACTION_WOLF && players[wolf_id].role != ROLE_HIDDEN_WOLF && players[wolf_id].is_alive) {
                         players[wolf_id].is_alive = false; players[wolf_id].can_vote = false; players[wolf_id].can_speak = false;
                         printf("\n=> 💥 【 %d 號 】狼人自爆！\n", wolf_id);
+                        printf("=> 請自爆的狼人【 %d 號 】發表遺言，發表完畢後進入黑夜。\n", wolf_id);
                         daytime_active = false; skip_voting = true;
                     } else { printf("[系統提示] 發動失敗。\n"); }
                 }
@@ -524,6 +525,7 @@ void run_day_phase(Player* players, GameState* state) {
                     if (target >= 1 && target <= 12 && players[target].is_alive) {
                         hunter_shoot(&players[target]);
                         printf("=> 砰！獵人開槍帶走了【 %d 號 】！\n", target);
+                        printf("\n=> 請被獵人開槍帶走的【 %d 號玩家 】發表遺言。\n", target);
                     } else { printf("[系統提示] 放棄開槍。\n"); }
                 }
             }

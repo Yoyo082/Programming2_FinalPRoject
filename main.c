@@ -44,10 +44,10 @@ int main()
 
         if (version_choice == 1 || version_choice == 2) {
             
-            // 🌟 1. 初始化遊戲狀態與發牌 (封裝在 setup.c)
+            // 1. 初始化遊戲狀態與發牌 (封裝在 setup.c)
             initialize_game(players, &state, version_choice);
             
-            // 🌟 2. 核心遊戲主迴圈 (黑夜與白天交替)
+            // 2. 核心遊戲主迴圈 (黑夜與白天交替)
             // 只要遊戲還沒結束 (state.is_game_over == false)，就一直循環
             while (!state.is_game_over) {
                 
@@ -61,15 +61,13 @@ int main()
                 run_day_phase(players, &state);
             }
 
-            // 🌟 3. 遊戲結束，播報獲勝陣營
+            //  3. 遊戲結束，播報獲勝陣營
             system(CLEAR_CMD);
             printf("\n==========================================\n");
             if (state.game_result == GAME_OVER_GOOD) {
-                printf("          🏆 遊戲結束：好人陣營獲勝！ 🏆          \n");
+                printf("           遊戲結束：好人陣營獲勝！           \n");
             } else if (state.game_result == GAME_OVER_WOLF) {
-                printf("          🏆 遊戲結束：狼人陣營獲勝！ 🏆          \n");
-            } else {
-                printf("          🏆 遊戲結束：平局或異常結束！ 🏆          \n");
+                printf("           遊戲結束：狼人陣營獲勝！           \n");
             }
             printf("==========================================\n\n");
 
