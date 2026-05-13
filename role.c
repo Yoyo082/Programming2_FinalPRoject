@@ -11,49 +11,58 @@ void werewolf_kill(Player* target) {
     }
 }
 
-// 女巫救人：告知死者號碼並決定是否使用解藥
-// 回傳 true 代表成功使用，false 代表不滿足條件（如自救、藥已用過、死者為 NULL）
-bool witch_save(Player* players, int witch_id, int killed_id, bool* has_antidote) {
-    // 必須有解藥、死者必須存在
-    if (!(*has_antidote) || killed_id == -1) return false;
-
-    // 規則判定：女巫被刀不能自救
-    if (killed_id == witch_id) {
-        return false; 
-    }
+bool witch_save(Player* players, int witch_id, int killed_id, GameState* state) {
+    // 防呆：從 state 中確認是否有解藥
+    if (!(state->witch_has_antidote) || killed_id == -1) return false;
+    if (killed_id == witch_id) return false; 
 
     players[killed_id].is_saved = true;
-    *has_antidote = false; // 標記解藥已使用
+    state->witch_has_antidote = false; // 更新狀態機，解藥用掉了
     return true;
 }
 
-// 女巫：使用毒藥
-bool witch_poison(Player* target, bool* has_poison) {
-    if (!(*has_poison) || !target->is_alive) return false;
+bool witch_poison(Player* target, GameState* state) {
+    if (!(state->witch_has_poison) || !target->is_alive) return false;
+    
     target->is_poisoned = true;
-    *has_poison = false;
+    state->witch_has_poison = false; // 更新狀態機
     return true;
 }
 
-// 守衛：守護 (傳入目標與昨晚守護的ID)
-bool guard_protect(Player* target, int* last_guarded_id) {
-    if (target->id == *last_guarded_id) return false; // 不能連守
+// 修改前：if (target->id == *last_guarded_id)
+// 修改後：
+bool guard_protect(Player* target, GameState* state) {
+    // 透過 state-> 讀取昨晚守護紀錄
+    if (target->id == state->last_guarded_id) return false; 
+    
     target->is_guarded = true;
-    *last_guarded_id = target->id; // 更新昨晚守護紀錄
+    state->last_guarded_id = target->id; // 更新狀態機裡的紀錄
     return true;
 }
 
-// 預言家查驗
-// 回傳 0 代表好人，1 代表狼人，-1 代表查驗失敗（如目標已死）
-int seer_investigate(Player* players, int target_id, int alive_wolf_count) {
+int seer_investigate(Player* players, int target_id, GameState* state) {
     if (!players[target_id].is_alive) return -1;
 
-    // 隱狼：只要還有其他狼隊友活著，查驗結果永遠為好人 (0)
-    if (players[target_id].role == ROLE_HIDDEN_WOLF && alive_wolf_count > 1) {
+    // 從狀態機直接拿取目前的活狼數量
+    if (players[target_id].role == ROLE_HIDDEN_WOLF && state->alive_wolf_count > 1) {
         return FACTION_GOOD;
     }
-
     return players[target_id].faction;
+}
+
+bool bear_roars(Player* players, int bear_id, GameState* state) {
+    if (!players[bear_id].is_alive) return false;
+
+    // ... 中間尋找 left 和 right 的迴圈照舊 ...
+
+    // 判斷時改用 state->alive_wolf_count
+    bool is_left_wolf = (players[left].faction == FACTION_WOLF) && 
+                        !(players[left].role == ROLE_HIDDEN_WOLF && state->alive_wolf_count > 1);
+                        
+    bool is_right_wolf = (players[right].faction == FACTION_WOLF) && 
+                         !(players[right].role == ROLE_HIDDEN_WOLF && state->alive_wolf_count > 1);
+
+    return (is_left_wolf || is_right_wolf);
 }
 
 // 獵人判定：是否可以開槍

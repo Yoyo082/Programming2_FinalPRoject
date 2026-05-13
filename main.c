@@ -1,5 +1,7 @@
 #include "player.h"
 #include "role.h"
+#include "state.h"
+#include "setup.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,11 +54,13 @@ int main()
     do
     {
         Player players[13];
-        int last_guarded_id = -1; //-1代表還為守護過
-        bool witch_has_antidote = true;
-        bool witch_has_poison = true;
-        int alive_wolf_count = 4;
-
+        GameState state;
+        state.last_guarded_id = -1;
+        state.witch_has_antidote = true;
+        state.witch_has_poison = true;
+        state.alive_wolf_count = 4;
+        state.current_board = version_choice; // 1 或 2
+        // ... 依序把需要的初始值設定好
         int version_choice = 0;
 
         printf("==========================================\n");
@@ -69,108 +73,47 @@ int main()
         printf("請輸入數字 (1-2): ");
 
         scanf("%d", &version_choice);
+        // (前面是印出選單與 scanf("%d", &version_choice); )
+        
+        // 🌟 取代開始點 🌟
+        if (version_choice == 1 || version_choice == 2) 
+        {
+            GameState state; // 宣告狀態機
+
+            // 🌟 呼叫妳寫好的 setup.c 函式，一行解決所有發牌與初始化！
+            initialize_game(players, &state, version_choice);
+            
+            // 由於尚未將 while(!game_over) 抽離，我們先用 if 來進入各自的遊戲迴圈
+            if (version_choice == 1) 
+            {
+                bool game_over = false;
+                int days = 1;
+                while (!game_over) 
+                {
+                    // ... 保留妳原本 main.c 裡面，白狼王騎士局從 for (int i = 1; i <= 12; i++) 清空標記開始的黑夜與白天迴圈 ...
+                }
+            } 
+            else if (version_choice == 2) 
+            {
+                bool game_over = false;
+                int days = 1;
+                while (!game_over) 
+                {
+                    // ... 保留妳原本 main.c 裡面，熊隱狼局從 for (int i = 1; i <= 12; i++) 清空標記開始的黑夜與白天迴圈 ...
+                }
+            }
+        }
+        else 
+        {
+            // 防呆：如果玩家輸入 1 和 2 以外的數字
+            printf("無效的版本選擇。\n");
+        }
+        // 🌟 取代結束點 🌟
+
+        // (下方繼續接原本的「遊戲結束！要再玩一局嗎？」...)
+        
         if (version_choice == 1)
         {
-            RoleType role_deck[13] = {
-                ROLE_VILLAGER, // 0號牌不使用
-                ROLE_WHITE_WOLF_KING, ROLE_WEREWOLF, ROLE_WEREWOLF, ROLE_WEREWOLF,
-                ROLE_SEER, ROLE_WITCH, ROLE_GUARD, ROLE_KNIGHT,
-                ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER};
-
-            srand(time(NULL));
-
-            // 身份deck洗牌
-            for (int i = 12; i > 1; i--)
-            {
-                int j = (rand() % i) + 1;
-
-                RoleType temp = role_deck[i];
-                role_deck[i] = role_deck[j];
-                role_deck[j] = temp;
-            }
-
-            for (int i = 1; i <= 12; i++)
-            {
-                players[i].id = i;
-                players[i].is_alive = true;
-                players[i].can_vote = true;
-                players[i].can_speak = true;
-                players[i].is_knifed = false;
-                players[i].is_saved = false;
-                players[i].is_poisoned = false;
-                players[i].is_guarded = false;
-
-                players[i].role = role_deck[i]; // 發洗好的牌
-
-                // 判斷是好人還是壞人
-                if (players[i].role == ROLE_WEREWOLF || players[i].role == ROLE_WHITE_WOLF_KING)
-                {
-                    players[i].faction = FACTION_WOLF;
-                }
-                else
-                {
-                    players[i].faction = FACTION_GOOD;
-                }
-            }
-
-            // 玩家輪流看牌
-            printf("\n=> 法官：發牌完畢！接下來請依照順序查看身分底牌。\n");
-
-            int dummy = 0; // 用來卡住畫面
-
-            for (int i = 1; i <= 12; i++)
-            {
-                system(CLEAR_CMD);
-
-                printf("\n==========================================\n");
-                printf("       現在輪到【 %d 號玩家 】查看身分       \n", i);
-                printf("==========================================\n");
-                printf("如果你是 %d 號玩家本人，請輸入 1 並按 Enter 翻牌：", i);
-                scanf("%d", &dummy);
-
-                printf("\n------------------------------------------\n");
-                printf("你的身分是：");
-                switch (players[i].role)
-                {
-                case ROLE_WHITE_WOLF_KING:
-                    printf("白狼王\n");
-                    break;
-                case ROLE_WEREWOLF:
-                    printf("狼人\n");
-                    break;
-                case ROLE_SEER:
-                    printf("預言家\n");
-                    break;
-                case ROLE_WITCH:
-                    printf("女巫\n");
-                    break;
-                case ROLE_GUARD:
-                    printf("守衛\n");
-                    break;
-                case ROLE_KNIGHT:
-                    printf("騎士\n");
-                    break;
-                case ROLE_VILLAGER:
-                    printf("平民\n");
-                    break;
-                default:
-                    printf("其他神祕身分\n");
-                    break;
-                }
-                printf("------------------------------------------\n");
-
-                // 蓋牌等待換人
-                printf("\n請確實記住你的身分！\n");
-                printf("看完後，請輸入 0 並按 Enter 蓋牌，然後交給下一位玩家：");
-                scanf("%d", &dummy);
-            }
-
-            // 所有人看完後，最後清空一次螢幕，準備進入夜晚
-            system(CLEAR_CMD);
-            printf("\n==========================================\n");
-            printf("=> 法官：所有人皆已確認身分！進入黑夜！\n");
-            printf("==========================================\n");
-
             bool game_over = false;
             int days = 1;
 
@@ -698,102 +641,6 @@ int main()
         }
         else if (version_choice == 2)
         {
-            // 【熊隱狼局牌庫】
-            RoleType role_deck[13] = {
-                ROLE_VILLAGER,
-                ROLE_HIDDEN_WOLF, ROLE_WEREWOLF, ROLE_WEREWOLF, ROLE_WEREWOLF,
-                ROLE_BEAR, ROLE_WITCH, ROLE_HUNTER, ROLE_IDIOT,
-                ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER, ROLE_VILLAGER};
-
-            srand(time(NULL));
-
-            for (int i = 12; i > 1; i--)
-            {
-                int j = (rand() % i) + 1;
-                RoleType temp = role_deck[i];
-                role_deck[i] = role_deck[j];
-                role_deck[j] = temp;
-            }
-
-            for (int i = 1; i <= 12; i++)
-            {
-                players[i].id = i;
-                players[i].is_alive = true;
-                players[i].can_vote = true;
-                players[i].can_speak = true;
-                players[i].is_knifed = false;
-                players[i].is_saved = false;
-                players[i].is_poisoned = false;
-                players[i].is_guarded = false;
-
-                players[i].role = role_deck[i];
-
-                if (players[i].role == ROLE_WEREWOLF || players[i].role == ROLE_HIDDEN_WOLF)
-                    players[i].faction = FACTION_WOLF;
-                else
-                    players[i].faction = FACTION_GOOD;
-            }
-
-            // 玩家輪流看牌
-            printf("\n發牌完畢！接下來請依照順序查看身分底牌。\n");
-            int dummy = 0;
-
-            for (int i = 1; i <= 12; i++)
-            {
-                system(CLEAR_CMD);
-                printf("\n==========================================\n");
-                printf("       現在輪到【 %d 號玩家 】查看身分       \n", i);
-                printf("==========================================\n");
-                printf("如果你是 %d 號玩家本人，請輸入 1 並按 Enter 翻牌：", i);
-                scanf("%d", &dummy);
-
-                printf("\n------------------------------------------\n");
-                printf("你的身分是：");
-                switch (players[i].role)
-                {
-                case ROLE_HIDDEN_WOLF:
-                    printf("隱狼\n");
-                    break;
-                case ROLE_WEREWOLF:
-                    printf("狼人\n");
-                    break;
-                case ROLE_BEAR:
-                    printf("熊\n");
-                    break;
-                case ROLE_WITCH:
-                    printf("女巫\n");
-                    break;
-                case ROLE_HUNTER:
-                    printf("獵人\n");
-                    break;
-                case ROLE_IDIOT:
-                    printf("白痴\n");
-                    break;
-                case ROLE_GUARD:
-                    printf("守衛\n");
-                    break;
-                case ROLE_SEER:
-                    printf("預言家\n");
-                    break;
-                case ROLE_VILLAGER:
-                    printf("平民\n");
-                    break;
-                default:
-                    printf("其他神祕身分\n");
-                    break;
-                }
-                printf("------------------------------------------\n");
-
-                printf("\n請確實記住你的身分！\n");
-                printf("看完後，請輸入 0 並按 Enter 蓋牌，然後交給下一位玩家：");
-                scanf("%d", &dummy);
-            }
-
-            system(CLEAR_CMD);
-            printf("\n==========================================\n");
-            printf("所有人皆已確認身分！進入黑夜！\n");
-            printf("==========================================\n");
-
             bool game_over = false;
             int days = 1;
 
