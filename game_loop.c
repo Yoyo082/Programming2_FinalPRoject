@@ -16,19 +16,16 @@ static int find_player(Player *players, RoleType role) {
 }
 
 // ─────────────────────────────────────────────
-//  內部輔助：動態生成「合法目標」的按鈕選單
+//  內部輔助：動態生成「合法目標」的按鈕選單 (升級版)
 // ─────────────────────────────────────────────
-#define TARGET_ALLOW_ZERO 1
-#define TARGET_EXCLUDE_SELF 2
-
-static int get_valid_target(const char *prompt, Player *players, int self_id, int flags) {
+static int get_valid_target(const char *prompt, Player *players, int exclude_id_1, int exclude_id_2, bool allow_zero) {
     UI_Log(prompt);
     char *strs[13];
     int val_map[13];
     int count = 0;
 
     // 是否允許選擇 0 (放棄/空守/不查驗)
-    if (flags & TARGET_ALLOW_ZERO) {
+    if (allow_zero) {
         strs[count] = malloc(2);
         strcpy(strs[count], "0");
         val_map[count] = 0;
@@ -38,7 +35,7 @@ static int get_valid_target(const char *prompt, Player *players, int self_id, in
     // 遍歷所有玩家，過濾無效選項
     for (int i = 1; i <= 12; i++) {
         if (!players[i].is_alive) continue; // 🌟 絕對不能對死人發動技能
-        if ((flags & TARGET_EXCLUDE_SELF) && (i == self_id)) continue; // 🌟 排除自己
+        if (i == exclude_id_1 || i == exclude_id_2) continue; // 🌟 排除指定對象 (如：自己、或昨晚守護的目標)
 
         strs[count] = malloc(8);
         snprintf(strs[count], 8, "%d", i);
@@ -71,8 +68,8 @@ static void do_hunter_shoot(Player *players, int hunter_id) {
     snprintf(buf, sizeof(buf), "獵人【 %d 號 】發動技能開槍！", hunter_id);
     UI_Log(buf);
     
-    // 🌟 獵人不能帶走自己，也不能鞭屍
-    int target = get_valid_target("請選擇要帶走的玩家號碼 (放棄請選 0)：", players, hunter_id, TARGET_ALLOW_ZERO | TARGET_EXCLUDE_SELF);
+    // 🌟 獵人不能帶走自己
+    int target = get_valid_target("請選擇要帶走的玩家號碼 (放棄請選 0)：", players, hunter_id, -1, true);
     
     if (target >= 1 && target <= 12) {
         hunter_shoot(&players[target]);
@@ -123,24 +120,27 @@ void run_night_phase(Player *players, GameState *state) {
         int guard_id = find_player(players, ROLE_GUARD);
 
         if (guard_id != -1 && players[guard_id].is_alive) {
-            // 守衛可以守自己，所以不加 EXCLUDE_SELF
-            int guard_target = get_valid_target("請選擇要守護的玩家號碼 (空守請選 0)：", players, guard_id, TARGET_ALLOW_ZERO);
+            int guard_target = get_valid_target("請選擇要守護的玩家號碼 (空守請選 0)：", players, state->last_guarded_id, -1, true);
+            
             if (guard_target >= 1 && guard_target <= 12) {
-                bool ok = guard_protect(&players[guard_target], state);
-                if (!ok) UI_Log("[系統提示] 不能連續兩晚守護同一人，視為空守。");
+                guard_protect(&players[guard_target], state);
             } else {
-                state->last_guarded_id = -1;
-                if (guard_target != 0) UI_Log("[系統提示] 無效目標，視為空守。");
+                state->last_guarded_id = -1; // 空守則重置守護紀錄
             }
         } else {
-            UI_Log("(守衛已死亡，法官請協助混淆)");
+            UI_Log("(守衛已死亡，請死者協助混淆視聽)"); // 🌟 修正
         }
         UI_WaitContinue();
 
         // ── 狼人 ──
         UI_ClearLog();
-        UI_Log("狼人請睜眼，白狼請比大拇指");
-        int wolf_target = get_valid_target("請選擇要擊殺的玩家號碼 (不殺請選 0)：", players, -1, TARGET_ALLOW_ZERO);
+        // 🌟 修正：只有第一天才提示白狼王比大拇指
+        if (state->day_count == 1) {
+            UI_Log("狼人請睜眼，白狼請比大拇指");
+        } else {
+            UI_Log("狼人請睜眼");
+        }
+        int wolf_target = get_valid_target("請選擇要擊殺的玩家號碼 (不殺請選 0)：", players, -1, -1, true);
         if (wolf_target >= 1 && wolf_target <= 12) {
             werewolf_kill(&players[wolf_target]);
             state->killed_last_night = wolf_target;
@@ -168,7 +168,7 @@ void run_night_phase(Player *players, GameState *state) {
                     UI_Log("你的解藥已用盡，無法得知今晚誰被殺死。");
                 }
 
-                // 🌟 改良：如果女巫被首刀，直接隱藏「使用解藥」選項
+                // 女巫選擇藥水
                 const char *opts[3];
                 int opt_map[3]; 
                 int opt_cnt = 0;
@@ -197,8 +197,7 @@ void run_night_phase(Player *players, GameState *state) {
                         UI_Log(buf);
                     }
                 } else if (choice == 2) {
-                    // 🌟 女巫毒人：過濾死人且過濾自己
-                    int pt = get_valid_target("你要毒誰？(請選擇玩家編號)", players, witch_id, TARGET_EXCLUDE_SELF);
+                    int pt = get_valid_target("你要毒誰？(請選擇玩家編號)", players, witch_id, -1, false);
                     if (pt >= 1 && pt <= 12) {
                         witch_poison(&players[pt], state);
                         snprintf(buf, sizeof(buf), "成功對 %d 號玩家使用毒藥。", pt);
@@ -210,7 +209,7 @@ void run_night_phase(Player *players, GameState *state) {
                 UI_WaitContinue();
             }
         } else {
-            UI_Log("(女巫已死亡，法官請協助混淆)");
+            UI_Log("(女巫已死亡，請死者協助混淆視聽)"); // 🌟 修正
             UI_WaitContinue();
         }
 
@@ -220,8 +219,7 @@ void run_night_phase(Player *players, GameState *state) {
         int seer_id = find_player(players, ROLE_SEER);
 
         if (seer_id != -1 && players[seer_id].is_alive) {
-            // 🌟 預言家查驗：排除自己，過濾死人
-            int seer_target = get_valid_target("請選擇要查驗的玩家號碼 (不查驗請選 0)：", players, seer_id, TARGET_ALLOW_ZERO | TARGET_EXCLUDE_SELF);
+            int seer_target = get_valid_target("請選擇要查驗的玩家號碼 (不查驗請選 0)：", players, seer_id, -1, true);
             if (seer_target >= 1 && seer_target <= 12) {
                 int result = seer_investigate(players, seer_target, state);
                 if (result == -1)
@@ -234,7 +232,7 @@ void run_night_phase(Player *players, GameState *state) {
                 UI_Log("預言家選擇不查驗。");
             }
         } else {
-            UI_Log("(預言家已死亡，法官請協助混淆)");
+            UI_Log("(預言家已死亡，請死者協助混淆視聽)"); // 🌟 修正
         }
         UI_WaitContinue();
     }
@@ -265,14 +263,14 @@ void run_night_phase(Player *players, GameState *state) {
             bool awakened = hidden_wolf_awakens(state, &players[hw_id]);
             UI_Log(awakened ? "回歸狼隊情況：（ 已回歸 ）" : "回歸狼隊情況：（ 無 ）");
         } else {
-            UI_Log("(隱狼已死亡，法官請協助混淆)");
+            UI_Log("(隱狼已死亡，請死者協助混淆視聽)"); // 🌟 修正
         }
         UI_WaitContinue();
 
         // ── 狼人 ──
         UI_ClearLog();
         UI_Log("狼人請睜眼");
-        int wolf_target = get_valid_target("請選擇要擊殺的玩家號碼 (不殺請選 0)：", players, -1, TARGET_ALLOW_ZERO);
+        int wolf_target = get_valid_target("請選擇要擊殺的玩家號碼 (不殺請選 0)：", players, -1, -1, true);
         if (wolf_target >= 1 && wolf_target <= 12) {
             werewolf_kill(&players[wolf_target]);
             state->killed_last_night = wolf_target;
@@ -322,7 +320,7 @@ void run_night_phase(Player *players, GameState *state) {
                     snprintf(buf, sizeof(buf), ok ? "成功救活了 %d 號玩家。" : "使用解藥失敗。", state->killed_last_night);
                     UI_Log(buf);
                 } else if (choice == 2) {
-                    int pt = get_valid_target("你要毒誰？(請選擇玩家編號)", players, witch_id, TARGET_EXCLUDE_SELF);
+                    int pt = get_valid_target("你要毒誰？(請選擇玩家編號)", players, witch_id, -1, false);
                     if (pt >= 1 && pt <= 12) {
                         witch_poison(&players[pt], state);
                         snprintf(buf, sizeof(buf), "成功對 %d 號使用毒藥。", pt);
@@ -333,7 +331,7 @@ void run_night_phase(Player *players, GameState *state) {
                 }
             }
         } else {
-            UI_Log("(女巫已死亡，法官請協助混淆)");
+            UI_Log("(女巫已死亡，請死者協助混淆視聽)"); // 🌟 修正
         }
         UI_WaitContinue();
 
@@ -346,7 +344,7 @@ void run_night_phase(Player *players, GameState *state) {
             bool can = hunter_can_shoot(&players[hunter_id]);
             UI_Log(can ? "今晚開槍狀態：（ 可以開槍 ）" : "今晚開槍狀態：（ 不能開槍 ）");
         } else {
-            UI_Log("(獵人已死亡，法官請協助混淆)");
+            UI_Log("(獵人已死亡，請死者協助混淆視聽)"); // 🌟 修正
         }
         UI_WaitContinue();
     }
@@ -480,8 +478,8 @@ void run_day_phase(Player *players, GameState *state) {
             // ── 板子1 突發技能 ──
             if (state->current_board == 1) {
                 if (day_choice == 2) { // 騎士決鬥
-                    int k_id = get_valid_target("發動者（騎士）編號：", players, -1, 0);
-                    int target_id = get_valid_target("決鬥目標編號：", players, k_id, TARGET_EXCLUDE_SELF);
+                    int k_id = get_valid_target("發動者（騎士）編號：", players, -1, -1, false);
+                    int target_id = get_valid_target("決鬥目標編號：", players, k_id, -1, false);
                     
                     if (k_id >= 1 && k_id <= 12 && target_id >= 1 && target_id <= 12) {
                         int duel_result = knight_duel(players, k_id, target_id, state);
@@ -500,8 +498,8 @@ void run_day_phase(Player *players, GameState *state) {
                 }
 
                 else if (day_choice == 3) { // 白狼王自爆
-                    int wwk_id = get_valid_target("白狼王編號：", players, -1, 0);
-                    int target_id = get_valid_target("要帶走的目標：", players, wwk_id, TARGET_EXCLUDE_SELF);
+                    int wwk_id = get_valid_target("白狼王編號：", players, -1, -1, false);
+                    int target_id = get_valid_target("要帶走的目標：", players, wwk_id, -1, false);
 
                     if (wwk_id >= 1 && wwk_id <= 12 && target_id >= 1 && target_id <= 12) {
                         if (players[wwk_id].role == ROLE_WHITE_WOLF_KING && players[wwk_id].is_alive) {
@@ -515,7 +513,7 @@ void run_day_phase(Player *players, GameState *state) {
                         }
                     }
                 } else if (day_choice == 4) { // 普通狼人自爆
-                    int wolf_id = get_valid_target("自爆的狼人編號：", players, -1, 0);
+                    int wolf_id = get_valid_target("自爆的狼人編號：", players, -1, -1, false);
                     if (wolf_id >= 1 && wolf_id <= 12) {
                         if (players[wolf_id].faction == FACTION_WOLF &&
                             players[wolf_id].role != ROLE_HIDDEN_WOLF && players[wolf_id].is_alive) {
@@ -535,7 +533,7 @@ void run_day_phase(Player *players, GameState *state) {
             // ── 板子2 突發技能 ──
             else if (state->current_board == 2) {
                 if (day_choice == 2) { // 狼人自爆
-                    int wolf_id = get_valid_target("自爆的狼人編號：", players, -1, 0);
+                    int wolf_id = get_valid_target("自爆的狼人編號：", players, -1, -1, false);
                     if (wolf_id >= 1 && wolf_id <= 12) {
                         if (players[wolf_id].faction == FACTION_WOLF && 
                             players[wolf_id].role != ROLE_HIDDEN_WOLF && // 擋住隱狼自爆
@@ -571,7 +569,7 @@ void run_day_phase(Player *players, GameState *state) {
         UI_Log("================ 投票環節 ================");
         
         // 投票可以投給任何活人，或者是 0(棄票)
-        int vote_id = get_valid_target("請選擇出局者編號 (不投票請選 0)：", players, -1, TARGET_ALLOW_ZERO);
+        int vote_id = get_valid_target("請選擇出局者編號 (不投票請選 0)：", players, -1, -1, true);
 
         if (vote_id >= 1 && vote_id <= 12) {
 

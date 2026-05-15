@@ -40,11 +40,6 @@ bool guard_protect(Player* target, GameState* state) {
 
 int seer_investigate(Player* players, int target_id, GameState* state) {
     if (!players[target_id].is_alive) return -1;
-
-    //  從狀態機直接拿取目前的活狼數量
-    if (state->alive_wolf_count > 1) {
-        return FACTION_GOOD;
-    }
     return players[target_id].faction;
 }
 
