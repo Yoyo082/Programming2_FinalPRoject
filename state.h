@@ -20,6 +20,7 @@ typedef struct {
     int last_guarded_id;    // 昨晚守護的 ID (預防連守)
     bool witch_has_antidote;// 女巫是否有解藥
     bool witch_has_poison;  // 女巫是否有毒藥
+    bool knight_has_dueled; // 紀錄騎士是否已經決鬥過
     
     // --- 動態計數器 (解決妳發現的 alive_wolf_count 更新問題) ---
     int alive_wolf_count;   // 當前存活狼人數

@@ -10,43 +10,39 @@ void werewolf_kill(Player* target) {
     }
 }
 
-// 🌟 修改：接收 GameState* state
 bool witch_save(Player* players, int witch_id, int killed_id, GameState* state) {
     // 防呆：從 state 中確認是否有解藥
     if (!(state->witch_has_antidote) || killed_id == -1) return false;
     if (killed_id == witch_id) return false; 
 
     players[killed_id].is_saved = true;
-    state->witch_has_antidote = false; // 🌟 更新狀態機，解藥用掉了
+    state->witch_has_antidote = false; //  更新狀態機，解藥用掉了
     return true;
 }
 
-// 🌟 修改：接收 GameState* state
 bool witch_poison(Player* target, GameState* state) {
     // 防呆：從 state 中確認是否有毒藥
     if (!(state->witch_has_poison) || !target->is_alive) return false;
     
     target->is_poisoned = true;
-    state->witch_has_poison = false; // 🌟 更新狀態機，毒藥用掉了
+    state->witch_has_poison = false; //  更新狀態機，毒藥用掉了
     return true;
 }
 
-// 🌟 修改：接收 GameState* state
 bool guard_protect(Player* target, GameState* state) {
-    // 🌟 透過 state 讀取昨晚守護紀錄
+    //  透過 state 讀取昨晚守護紀錄
     if (target->id == state->last_guarded_id) return false; 
     
     target->is_guarded = true;
-    state->last_guarded_id = target->id; // 🌟 更新狀態機裡的紀錄
+    state->last_guarded_id = target->id; // 更新狀態機裡的紀錄
     return true;
 }
 
-// 🌟 修改：接收 GameState* state
 int seer_investigate(Player* players, int target_id, GameState* state) {
     if (!players[target_id].is_alive) return -1;
 
-    // 🌟 從狀態機直接拿取目前的活狼數量
-    if (players[target_id].role == ROLE_HIDDEN_WOLF && state->alive_wolf_count > 1) {
+    //  從狀態機直接拿取目前的活狼數量
+    if (state->alive_wolf_count > 1) {
         return FACTION_GOOD;
     }
     return players[target_id].faction;
@@ -70,20 +66,27 @@ void hunter_shoot(Player* target) {
 
 // --- 進階版型邏輯 ---
 
-// 騎士決鬥 
-bool knight_duel(Player* players, int knight_id, int target_id) {
-    if (!players[knight_id].is_alive || !players[target_id].is_alive) return false;
+// 騎士決鬥 (回傳 1:殺死狼, 0:殺錯好人, -1:發動無效)
+int knight_duel(Player* players, int knight_id, int target_id, GameState* state) {
+    // 1. 防呆攔截：技能已用過、騎士已死、目標已死、發動者根本不是騎士
+    if (state->knight_has_dueled) return -1;
+    if (!players[knight_id].is_alive || !players[target_id].is_alive) return -1;
+    if (players[knight_id].role != ROLE_KNIGHT) return -1;
 
+    // 2. 鎖上技能 (這局遊戲不能再用了)
+    state->knight_has_dueled = true;
+
+    // 3. 判定決鬥結果
     if (players[target_id].faction == FACTION_WOLF) {
         players[target_id].is_alive = false;
         players[target_id].can_vote = false;
         players[target_id].can_speak = false;
-        return true; 
+        return 1; // 決鬥成功，目標死亡
     } else {
         players[knight_id].is_alive = false;
         players[knight_id].can_vote = false;
         players[knight_id].can_speak = false;
-        return false; 
+        return 0; // 決鬥失敗，騎士自己死亡
     }
 }
 
@@ -104,16 +107,16 @@ bool white_wolf_king_explode(Player* players, int wwk_id, int target_id) {
     return true; 
 }
 
-// 🌟 修改：接收 GameState* state
+// 修改：接收 GameState* state
 bool hidden_wolf_awakens(GameState* state, Player* hw_player) {
-    // 🌟 從狀態機讀取活狼數
+    //  從狀態機讀取活狼數
     if (state->alive_wolf_count == 1 && hw_player->role == ROLE_HIDDEN_WOLF) {
         return true; 
     }
     return false;
 }
 
-// 🌟 修改：接收 GameState* state
+// 修改：接收 GameState* state
 bool bear_roars(Player* players, int bear_id, GameState* state) {
     if (!players[bear_id].is_alive) return false; 
 
@@ -127,7 +130,7 @@ bool bear_roars(Player* players, int bear_id, GameState* state) {
         right = (right + 1) % 12;
     }
 
-    // 🌟 判斷時改用 state->alive_wolf_count
+    // 判斷時改用 state->alive_wolf_count
     bool is_left_wolf = (players[left].faction == FACTION_WOLF) && 
                         !(players[left].role == ROLE_HIDDEN_WOLF && state->alive_wolf_count > 1);
                         

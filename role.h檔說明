@@ -46,10 +46,14 @@ void hunter_shoot(Player* target)
 
 --進階版型邏輯--
 
-bool knight_duel(Player* players, int knight_id, int target_id)
+int knight_duel(Player* players, int knight_id, int target_id, GameState* state)
 功能： 執行騎士在白天的決鬥動作。
-動作： 若決鬥目標為狼人陣營，目標死亡；若為好人陣營，騎士自己死亡（以死謝罪）。
-回傳值： 若決鬥到狼人（應強制結束白天）回傳 true，否則回傳 false。
+動作：
+防呆檢查：確認 state->knight_has_dueled 是否為 false，且騎士與目標玩家皆存活。若發動無效則回傳 -1。
+發動後將 state->knight_has_dueled 設為 true，鎖定技能。
+若決鬥目標為狼人陣營：目標死亡（is_alive 設為 false）。
+若決鬥目標為好人陣營：騎士自己死亡（以死謝罪）。
+回傳值： 1 (決鬥成功殺狼), 0 (決鬥失敗騎士死), -1 (發動無效)。
 
 bool white_wolf_king_explode(Player* players, int wwk_id, int target_id)
 功能： 執行白狼王在白天的自爆帶人動作。

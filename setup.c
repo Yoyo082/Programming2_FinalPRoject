@@ -14,6 +14,7 @@ void initialize_game(Player *players, GameState *state, int version_choice) {
     state->last_guarded_id = -1;
     state->witch_has_antidote = true;
     state->witch_has_poison = true;
+    state->knight_has_dueled = false;
     state->alive_wolf_count = 4; // 目前兩個版子剛好都是4狼
     state->is_night = true;
     state->killed_last_night = -1;

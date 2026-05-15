@@ -442,23 +442,30 @@ void run_day_phase(Player *players, GameState *state) {
                 if (day_choice == 2) { // 騎士決鬥
                     int k_id = UI_WaitNumber("發動者（騎士）編號：", 1, 12);
                     int target_id = UI_WaitNumber("決鬥目標編號：", 1, 12);
-                    if (players[k_id].role == ROLE_KNIGHT && players[k_id].is_alive &&
-                        players[target_id].is_alive) {
-                        bool wolf_killed = knight_duel(players, k_id, target_id);
-                        if (wolf_killed) {
+                    
+                    if (k_id >= 1 && k_id <= 12 && target_id >= 1 && target_id <= 12) {
+                        
+                        int duel_result = knight_duel(players, k_id, target_id, state);
+                        
+                        if (duel_result == 1) {
                             snprintf(buf, sizeof(buf), "騎士決鬥成功！【 %d 號 】是狼人，立刻出局！", target_id);
                             UI_Log(buf);
                             daytime_active = false;
                             skip_voting = true;
-                        } else {
+                        } else if (duel_result == 0) {
                             snprintf(buf, sizeof(buf), "騎士決鬥失敗！【 %d 號 】是好人，騎士以死謝罪。", target_id);
                             UI_Log(buf);
+                            // 決鬥失敗，白天繼續發言，之後正常投票
+                        } else {
+                            // 當死人、假冒者嘗試發動，或技能用過時，只會印出這行，不會影響遊戲狀態！
+                            UI_Log("[系統提示] 發動無效。（發動者並非存活騎士，或技能已用過）");
                         }
                     } else {
-                        UI_Log("[系統提示] 發動失敗。");
+                        UI_Log("[系統提示] 輸入的編號超出範圍。");
                     }
+                }
 
-                } else if (day_choice == 3) { // 白狼王自爆
+                else if (day_choice == 3) { // 白狼王自爆
                     int wwk_id = UI_WaitNumber("白狼王編號：", 1, 12);
                     int target_id = UI_WaitNumber("要帶走的目標：", 1, 12);
                     if (players[wwk_id].role == ROLE_WHITE_WOLF_KING && players[wwk_id].is_alive &&
@@ -492,11 +499,15 @@ void run_day_phase(Player *players, GameState *state) {
             else if (state->current_board == 2) {
                 if (day_choice == 2) { // 狼人自爆
                     int wolf_id = UI_WaitNumber("自爆的狼人編號：", 1, 12);
-                    if (players[wolf_id].faction == FACTION_WOLF && players[wolf_id].is_alive) {
+                    if (players[wolf_id].faction == FACTION_WOLF && 
+                        players[wolf_id].role != ROLE_HIDDEN_WOLF && // 擋住隱狼自爆
+                        players[wolf_id].is_alive) {
+                        
                         players[wolf_id].is_alive = false;
                         players[wolf_id].can_vote = false;
                         players[wolf_id].can_speak = false;
-                        snprintf(buf, sizeof(buf), "【 %d 號 】狼人自爆！", wolf_id);
+                        // 補上遺言提示
+                        snprintf(buf, sizeof(buf), "【 %d 號 】狼人自爆！請發表遺言後進入黑夜。", wolf_id);
                         UI_Log(buf);
                         daytime_active = false;
                         skip_voting = true;
